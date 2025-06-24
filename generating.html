@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corrected Visit & Call Schedule Generator</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for modern typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Style for the button transition */
+        .btn-transition {
+            transition: background-color 0.3s, transform 0.1s;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto max-w-3xl p-4 sm:p-6 lg:p-8">
+        <div class="bg-white p-8 rounded-2xl shadow-lg">
+            
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900">Clinic Schedule Generator</h1>
+                <p class="text-gray-600 mt-2">Enter the visit dates below. The tool will generate the weekly and reminder call schedule.</p>
+            </div>
+
+            <!-- Input Form Grid -->
+            <div class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="date_day1" class="block text-sm font-medium text-gray-700 mb-2">Screening / Vaccination (Day 1):</label>
+                        <input type="date" id="date_day1" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="date_visit2" class="block text-sm font-medium text-gray-700 mb-2">Clinic Visit 2:</label>
+                        <input type="date" id="date_visit2" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="date_safetyCall" class="block text-sm font-medium text-gray-700 mb-2">Safety Phone Call:</label>
+                        <input type="date" id="date_safetyCall" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="date_visit4" class="block text-sm font-medium text-gray-700 mb-2">Clinic Visit 4 (Day 180+):</label>
+                        <input type="date" id="date_visit4" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center gap-4 mt-8">
+                <button onclick="generateSchedule()" class="flex-grow bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 btn-transition">Generate</button>
+                <button onclick="downloadSchedule()" class="flex-grow bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 btn-transition">Download</button>
+                <button id="copyButton" onclick="copySchedule()" class="flex-grow bg-yellow-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 btn-transition">Copy</button>
+            </div>
+
+            <!-- Results Section -->
+            <div id="results" class="mt-8">
+                 <div class="bg-gray-100 p-4 rounded-lg text-center text-gray-500">
+                    Your generated schedule will appear here...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Formats a Date object into a DD/MMM/YYYY string (e.g., 28/FEB/2025).
+         * @param {Date} date The date to format.
+         * @returns {string} The formatted date string.
+         */
+        function formatDate(date) {
+            if (!date || isNaN(date)) return "Invalid Date";
+            const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = monthNames[date.getMonth()];
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+
+        /**
+         * Adds or subtracts days from a date.
+         * @param {Date} date The base date.
+         * @param {number} days The number of days to add.
+         * @returns {Date} The new date.
+         */
+        function addDays(date, days) {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        }
+
+        /**
+         * Main function to generate the schedule based on user input and specific rules.
+         */
+        function generateSchedule() {
+            const resultsDiv = document.getElementById('results');
+
+            // --- 1. Get and Validate All Input Dates ---
+            const day1Date = document.getElementById('date_day1').value;
+            const visit2Date = document.getElementById('date_visit2').value;
+            const safetyCallDate = document.getElementById('date_safetyCall').value;
+            const visit4Date = document.getElementById('date_visit4').value;
+
+            if (!day1Date || !visit2Date || !safetyCallDate || !visit4Date) {
+                resultsDiv.innerHTML = `<div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
+                                          <p class="font-bold">Missing Information</p>
+                                          <p>Please enter all four visit dates to generate the schedule.</p>
+                                        </div>`;
+                return;
+            }
+            
+            // --- 2. Parse Dates and Prepare for Logic ---
+            const day1 = new Date(day1Date + 'T12:00:00');
+            const visit2 = new Date(visit2Date + 'T12:00:00');
+            const safetyCall = new Date(safetyCallDate + 'T12:00:00');
+            const visit4 = new Date(visit4Date + 'T12:00:00');
+
+            // --- 3. Build Main Visit Output ---
+            let output = `--- Main Visit Schedule ---\n` +
+                         `Screening / Vaccination (Day 1):\t${formatDate(day1)}\n` +
+                         `Clinic Visit 2:\t\t\t\t${formatDate(visit2)}\n` +
+                         `Safety Phone Call:\t\t\t${formatDate(safetyCall)}\n` +
+                         `Clinic Visit 4:\t\t\t\t${formatDate(visit4)}\n\n` +
+                         `--- Generated Phone Call Schedule ---\n`;
+            
+            // --- 4. Generate Call Schedule Based on Corrected Rules ---
+            // Create a list of special calls that override the weekly call.
+            const specialCalls = [
+                { date: addDays(visit2, -1), type: 'Reminder Call' },
+                { date: safetyCall,          type: 'Safety Phone Call' }, // The Safety Call itself is a scheduled call
+                { date: addDays(visit4, -1), type: 'Reminder Call' }
+            ];
+             // Sort by date to process them chronologically
+            specialCalls.sort((a, b) => a.date - b.date);
+
+            let currentWeekStart = day1;
+            let weekNumber = 1;
+
+            while (currentWeekStart <= visit4) {
+                const weeklyCallDate = addDays(currentWeekStart, 7);
+                let callWasMadeThisWeek = false;
+
+                // Check if any special call falls in the upcoming 7-day window.
+                for (const call of specialCalls) {
+                    if (call.date > currentWeekStart && call.date <= weeklyCallDate) {
+                        output += `Week ${String(weekNumber).padEnd(2)}: ${call.type.padEnd(17)}\t(${formatDate(call.date)})\n`;
+                        callWasMadeThisWeek = true;
+                        break; // Crucial: Only one call per week.
+                    }
+                }
+
+                // If no special call was made, schedule the regular weekly call.
+                if (!callWasMadeThisWeek) {
+                    // But don't schedule it if we're past the final visit
+                     if (weeklyCallDate <= addDays(visit4, 7)) { // Add a buffer week
+                          output += `Week ${String(weekNumber).padEnd(2)}: Weekly 7-Day Call\t(${formatDate(weeklyCallDate)})\n`;
+                     }
+                }
+
+                currentWeekStart = addDays(currentWeekStart, 7);
+                weekNumber++;
+            }
+            
+            // --- 5. Display the final result ---
+            resultsDiv.innerHTML = `<pre class="bg-gray-100 p-4 rounded-lg text-sm text-gray-900 whitespace-pre-wrap overflow-x-auto"><code>${output}</code></pre>`;
+        }
+
+        /**
+         * Downloads the generated schedule as a .txt file.
+         */
+        function downloadSchedule() {
+            const scheduleText = document.querySelector('#results pre code')?.textContent;
+            if (!scheduleText || scheduleText.includes("Your generated schedule")) {
+                alert("Please generate a schedule first.");
+                return;
+            }
+            const blob = new Blob([scheduleText], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'Clinical_Call_Schedule.txt';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        /**
+         * Copies the generated schedule to the clipboard.
+         */
+        function copySchedule() {
+            const scheduleText = document.querySelector('#results pre code')?.textContent;
+            if (!scheduleText || scheduleText.includes("Your generated schedule")) {
+                alert("Please generate a schedule first.");
+                return;
+            }
+
+            const textArea = document.createElement('textarea');
+            textArea.value = scheduleText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                const copyButton = document.getElementById('copyButton');
+                const originalText = copyButton.textContent;
+                copyButton.textContent = 'Copied!';
+                copyButton.classList.add('bg-green-600', 'hover:bg-green-700');
+                copyButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                
+                setTimeout(() => {
+                    copyButton.textContent = originalText;
+                    copyButton.classList.remove('bg-green-600', 'hover:bg-green-700');
+                    copyButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                }, 2000);
+
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+            }
+            document.body.removeChild(textArea);
+        }
+    </script>
+</body>
+</html>
